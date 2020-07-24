@@ -16,33 +16,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib as mpl
 
-def housing_data():
-    housing = pd.read_csv('ACSDP5Y2010.DP04_data_with_overlays_2020-07-23T141445.csv', skiprows=1, index_col='Geographic Area Name')
-    housing = housing.drop('id', axis=1)
-    housing = housing.T.drop('New York', axis=1)
-    housing = housing.reset_index().rename(columns={'index': 'ind_vals', 'Queens County, New York': 'value'})
-    housing[['vars','gr_vals','ind_vals']] = housing['ind_vals'].apply(lambda x: pd.Series(x.split('!!')))
-    
-    df = housing.set_index('gr_vals', 'ind_vals')
-    df1 = df.where(df['vars'] == 'Estimate').dropna().drop('vars', axis=1)
-    df2 = df.where(df['vars'] == 'Estimate Margin of Error').dropna().drop('vars', axis=1)
-    df3 = df.where(df['vars'] == 'Percent').dropna().drop('vars', axis=1)
-    df4 = df.where(df['vars'] == 'Percent Margin of Error').dropna().drop('vars', axis=1)
-    
-    df5 = pd.merge(df1, df2, on=['gr_vals', 'ind_vals'])
-    df5 = df5.rename(columns={'value_x': 'estimate', 'value_y': 'estimateME'})
-    
-    df5 = pd.merge(df5, df3, on=['gr_vals', 'ind_vals'])
-    df5 = pd.merge(df5, df4, on=['gr_vals', 'ind_vals'])
-    df = df5.rename(columns={'value_x': 'percent', 'value_y': 'percentME'})
-    
-    df = df5.rename(columns={'value_x': 'estimate',
-                             'value_y': 'estimateME',
-                             'value_x': 'percent',
-                             'value_y': 'percentME'})
-    return df
-
-#housing = housing_data()
+from IPython import get_ipython
+get_ipython().run_line_magic('matplotlib', 'inline')
 
 def religion_data():
     relig = pd.read_excel('Longitudinal Religious Congregations and Membership File, 1980-2010 (County Level).XLSX')
@@ -54,38 +29,6 @@ def religion_data():
     return relig
 
 religion = religion_data()
-
-def demo_data():
-    demo = pd.read_csv('ACSDP5Y2010.DP05_data_with_overlays_2020-07-23T161422.csv', skiprows=1, index_col='Geographic Area Name')
-    demo = demo.drop('id', axis=1)
-    demo = demo.T.drop('New York', axis=1)
-    demo = demo.reset_index().rename(columns={'index': 'ind_vals', 'Queens County, New York': 'value'})
-    demo[['vars','gr_vals','ind_vals', 'race', 'ethnicity']] = demo['ind_vals'].apply(lambda x: pd.Series(x.split('!!')))
-    
-    
-    df = demo
-    df1 = df.where(df['vars'] == 'Estimate').dropna(subset=['vars']).drop('vars', axis=1)
-    df2 = df.where(df['vars'] == 'Estimate Margin of Error').dropna(subset=['vars']).drop('vars', axis=1)
-    df3 = df.where(df['vars'] == 'Percent').dropna(subset=['vars']).drop('vars', axis=1)
-    df4 = df.where(df['vars'] == 'Percent Margin of Error').dropna(subset=['vars']).drop('vars', axis=1)
-       
-    df5 = pd.merge(df1, df2, on=['gr_vals', 'ind_vals', 'race', 'ethnicity'])
-    df5 = df5.rename(columns={'value_x': 'estimate', 'value_y': 'estimateME'})
-    
-    df5 = pd.merge(df5, df3, on=['gr_vals', 'ind_vals', 'race', 'ethnicity'])
-    df5 = pd.merge(df5, df4, on=['gr_vals', 'ind_vals', 'race', 'ethnicity'])
-    df = df5.rename(columns={'value_x': 'percent', 'value_y': 'percentME'})
-    return df
-
-#demog = demo_data()
-
-#demog = demog.where(demog['gr_vals'] == 'RACE').dropna(subset=['gr_vals'])
-#demog = demog.reset_index().drop('index', axis=1)
-#demog = demog.drop([0, 1, 2, 3, 6, 11, 19])
-#demog = demog.where(demog['ind_vals'] == 'One race').dropna(subset=['ind_vals']).drop(['gr_vals', 'ind_vals'], axis=1)
-
-from IPython import get_ipython
-get_ipython().run_line_magic('matplotlib', 'inline')
 
 def census_data():
     census = pd.read_csv('co-est00int-alldata-36.csv')
@@ -111,22 +54,41 @@ def census_data():
 
 census = census_data()
 
-def dot_plot_adh():
+def religion_lollipop():
     religion1 = religion.where(religion['YEAR'] == 2010).dropna()
     religion1['logADH'] = np.log(religion1['ADHERENT'])
     religion1 = religion1.sort_values(by='ADHERENT', ascending=False)
     #religion.plot('ADHERENT', 'CONGREG', kind='scatter')
     
+    import seaborn as sns
+    plt.hlines(y=religion1['GRPNAME'], xmin=0, xmax=religion1['logADH'], color='skyblue')
     figure = plt.plot(religion1['logADH'], religion1['GRPNAME'], 'o')
     fig = plt.gcf()
-    plt.grid()
+    #plt.grid()
     fig.set_size_inches(18, 25)
     return figure
 
-religion1 = religion.where(religion['YEAR'] == 2010).dropna()
-religion1['logADH'] = np.log(religion1['ADHERENT'])
-religion1 = religion1.sort_values(by='ADHERENT', ascending=False)
-
+def aa_pop_bar():
+    labels = list(census['YEAR'])
+    x = np.arange(len(labels))  # the label locations
+    width = 0.35  # the width of the bars
+    
+    fig, ax = plt.subplots()
+    rects1 = ax.bar(x - width/2, census['AA_MALE'], width, label='Men', color='teal')
+    rects2 = ax.bar(x + width/2, census['AA_FEMALE'], width, label='Women', color='pink')
+    
+    # Add some text for labels, title and custom x-axis tick labels, etc.
+    ax.set_ylabel('Estimated Population')
+    ax.set_title('Only Asian Population in Queens, New York \nby Gender from 2000 to 2010', fontweight='bold')
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    plt.tick_params(axis='x', length = 0)
+    ax.legend()
+    
+    fig.tight_layout()
+    plt.show()
+    return fig 
+    
 labels = list(census['YEAR'])
 x = np.arange(len(labels))  # the label locations
 width = 0.35  # the width of the bars
@@ -146,3 +108,4 @@ ax.legend()
 fig.tight_layout()
 
 plt.show()
+
