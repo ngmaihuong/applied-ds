@@ -8,7 +8,7 @@ Created on Thu Jul 23 13:32:31 2020
 
 
 import os #Change working directory
-os.chdir('/Users/Boo Boo/Downloads/Applied Plotting, Charting & Data Representation in Python/Data Files')
+os.chdir('/Users/Boo Boo/Downloads/SUM20 Coursera/Applied Data Science with Python Specialization/Applied Plotting, Charting & Data Representation in Python/Data Files')
 
 import pandas as pd
 import numpy as np
@@ -105,6 +105,7 @@ def census_data():
                                       12: 2010,
                                       13: 2010}})
     census = census[census.AGEGRP == 99]
+    census = census.drop([10439, 10639])
     census = census.astype('int64')
     return census
 
@@ -127,9 +128,6 @@ religion1['logADH'] = np.log(religion1['ADHERENT'])
 religion1 = religion1.sort_values(by='ADHERENT', ascending=False)
 
 labels = list(census['YEAR'])
-men_means = [20, 34, 30, 35, 27]
-women_means = [25, 32, 34, 20, 25]
-
 x = np.arange(len(labels))  # the label locations
 width = 0.35  # the width of the bars
 
