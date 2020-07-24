@@ -24,8 +24,9 @@ def religion_data():
     relig = relig.where(relig['STATEAB']=='NY').dropna().where(relig['CNTYNM']=='Queens County').dropna().drop(['FIPSMERG', 'CNTYNM', 'STATEAB'], axis=1)
     relig = relig.where(relig['YEAR'] >= 2000).dropna()
     relig['TOTPOP'] = relig['TOTPOP'].astype('int64')
-    relig = relig.reset_index().drop(['NOTE_MIS', 'NOTE_COM', 'NOTE_MEA', 'index'], axis=1)
-    
+    relig = relig.reset_index().drop(['RELTRAD', 'FAMILY', 'NOTE_MIS', 'NOTE_COM', 'NOTE_MEA', 'index'], axis=1)
+    relig = relig.reset_index().drop('index', axis=1)
+    relig['TOTPOP'] = relig['TOTPOP'].astype('int64')
     return relig
 
 religion = religion_data()
@@ -50,9 +51,25 @@ def census_data():
     census = census[census.AGEGRP == 99]
     census = census.drop([10439, 10639])
     census = census.astype('int64')
+    census = census.reset_index().drop('index', axis=1)
+    census['TOT_AA'] =  census[['AA_MALE', 'AA_FEMALE', 'NHAA_MALE', 'NHAA_FEMALE', 'HAA_MALE', 'HAA_FEMALE']].sum(axis=1)
+    census['AA_PER'] = census['TOT_AA'] / census['TOT_POP']
     return census
 
 census = census_data()
+
+def religion_race_data():
+    religrace = pd.read_excel('AnnualRaceEthnicityAdherents.xlsx',
+                              usecols = [0, 1, 2, 9],
+                              sheet_name='2010', 
+                              skipfooter=5)
+    religrace = religrace[religrace['Asian/Pacific Islanders'] != 0]
+    religrace = religrace.reset_index().drop('index', axis=1)
+    religrace = religrace.replace({'Name': 
+                                   {'Int Pentecostal Holiness Church': 'International Pentecostal Holiness Church'}})    
+    return religrace
+
+rare = religion_race_data()
 
 def religion_lollipop():
     religion1 = religion.where(religion['YEAR'] == 2010).dropna()
@@ -88,24 +105,65 @@ def aa_pop_bar():
     fig.tight_layout()
     plt.show()
     return fig 
+
+#relig1 = religion.sort_values(by='GRPNAME', ascending=True)
+#rare1 = rare.sort_values(by='Name', ascending=True)
+#relig1 = religion.where(religion['GRPNAME'].str.contains(rare['Name'].iloc[0])).dropna()
+#relig1 = relig1.append(religion.where(religion['GRPNAME'].str.contains(rare['Name'].iloc[2][4:12])).dropna())
+
+def aa_relig_match():
+    from fuzzywuzzy import fuzz
+    from fuzzywuzzy import process
     
-labels = list(census['YEAR'])
-x = np.arange(len(labels))  # the label locations
-width = 0.35  # the width of the bars
+    def fuzzy_merge(df_1, df_2, key1, key2, threshold=90, limit=2):
+        s = df_2[key2].tolist()
+    
+        m = df_1[key1].apply(lambda x: process.extract(x, s, limit=limit))    
+        df_1['matches'] = m
+    
+        m2 = df_1['matches'].apply(lambda x: ', '.join([i[0] for i in x if i[1] >= threshold]))
+        df_1['matches'] = m2
+    
+        return df_1
+    
+    rare_match = fuzzy_merge(religion, rare, 'GRPNAME', 'Name', threshold=90)
+    rare_match = rare_match.where(rare_match['matches'] != '').dropna(subset=['matches'])
+    rare_match = pd.merge(rare_match, rare, left_on='matches', right_on='Name')
+    
+    rare_match = rare_match.where(rare_match['YEAR'] >= 2000).dropna(subset=['YEAR'])
+    rare_match = rare_match.drop(list(rare_match[rare_match['GRPCODE'].str.contains('[A-Za-z]')].index))
+    rare_match['Name'] = rare_match['Name'].str.replace(r"\s*\(.*\)\s*.*", "")
+    rare_match = rare_match.drop(['GRPNAME', 'matches'], axis=1)
+    rare_match = rare_match.reset_index().drop('index', axis=1)
+    rare_match['aa_ad_p'] = rare_match['Asian/Pacific Islanders'] / rare_match['Total Adherents']
+    rare_match['queens_ad_p'] = rare_match['ADHERENT'] / rare_match['TOTPOP']
+    rare_match = rare_match.where(rare_match['queens_ad_p'] >= 0.01).dropna(subset=['queens_ad_p'])
+    rare_match['TOTPOP'] = rare_match['TOTPOP'].astype('int64')
+    rare_match['Asian/Pacific Islanders'] = rare_match['Asian/Pacific Islanders'].astype('int64')
+    rare_match['Total Adherents'] = rare_match['Total Adherents'].astype('int64')
+    return rare_match
 
-fig, ax = plt.subplots()
-rects1 = ax.bar(x - width/2, census['AA_MALE'], width, label='Men', color='teal')
-rects2 = ax.bar(x + width/2, census['AA_FEMALE'], width, label='Women', color='pink')
+rarelig = aa_relig_match()
 
-# Add some text for labels, title and custom x-axis tick labels, etc.
-ax.set_ylabel('Estimated Population')
-ax.set_title('Only Asian Population in Queens, New York \nby Gender from 2000 to 2010', fontweight='bold')
-ax.set_xticks(x)
-ax.set_xticklabels(labels)
-plt.tick_params(axis='x', length = 0)
-ax.legend()
+labels = list(rarelig['YEAR'].astype('int64'))
 
-fig.tight_layout()
+p_2000 = ( census['AA_PER'].iloc[0] * rarelig['queens_ad_p'].iloc[0] )
+p_2010 = ( census['AA_PER'].iloc[10] * rarelig['queens_ad_p'].iloc[1] )
 
+rarelig['p_queens_aa_ad'] = [p_2000, p_2010]
+
+fig, ax1 = plt.subplots()
+ax2 = ax1.twinx()  # set up the 2nd axis
+
+ax1.bar(census['YEAR'], census['TOT_AA'], color='teal', alpha=0.5, label='Asian Population in Queens, NY')
+
+ax2.plot(census['YEAR'],census['AA_PER'], '-o', color='gold', scaley=False, label='Percentage of Asian Population in Queens, NY')
+ax2.plot(rarelig['YEAR'], rarelig['queens_ad_p'], '-o', color='navy', scaley=False, label='Percentage of Catholic Adherents in Queens, NY')
+ax2.plot(rarelig['YEAR'], rarelig['p_queens_aa_ad'], '-o', color='maroon', scaley=False, label = 'Probability of one being both Asian and Catholic in Queens, NY')
+plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.075), frameon=False)
+
+plt.title('Asian Catholic Population in Queens, NY from 2000 to 2010', fontweight='bold')
+
+fig.set_size_inches(8, 5)
 plt.show()
 
