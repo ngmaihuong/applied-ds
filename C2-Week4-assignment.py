@@ -106,11 +106,6 @@ def aa_pop_bar():
     plt.show()
     return fig 
 
-#relig1 = religion.sort_values(by='GRPNAME', ascending=True)
-#rare1 = rare.sort_values(by='Name', ascending=True)
-#relig1 = religion.where(religion['GRPNAME'].str.contains(rare['Name'].iloc[0])).dropna()
-#relig1 = relig1.append(religion.where(religion['GRPNAME'].str.contains(rare['Name'].iloc[2][4:12])).dropna())
-
 def aa_relig_match():
     from fuzzywuzzy import fuzz
     from fuzzywuzzy import process
@@ -141,29 +136,44 @@ def aa_relig_match():
     rare_match['TOTPOP'] = rare_match['TOTPOP'].astype('int64')
     rare_match['Asian/Pacific Islanders'] = rare_match['Asian/Pacific Islanders'].astype('int64')
     rare_match['Total Adherents'] = rare_match['Total Adherents'].astype('int64')
+    
+    p_2000 = ( census['AA_PER'].iloc[0] * rare_match['queens_ad_p'].iloc[0] )
+    p_2010 = ( census['AA_PER'].iloc[10] * rare_match['queens_ad_p'].iloc[1] )
+    
+    rare_match['p_queens_aa_ad'] = [p_2000, p_2010]
+    
     return rare_match
 
 rarelig = aa_relig_match()
 
-labels = list(rarelig['YEAR'].astype('int64'))
+def ultimate_graph():
+    labels = list(rarelig['YEAR'].astype('int64'))
+    
+    fig, ax1 = plt.subplots()
+    ax2 = ax1.twinx()  # set up the 2nd axis
+    
+    bars = ax1.bar(census['YEAR'], census['TOT_AA'], color='teal', alpha=0.5, label='Asian Population in Queens, NY')
+    
+    lines1 = ax2.plot(census['YEAR'],census['AA_PER'], '-o', color='gold', scaley=False, label='Percentage of Asian Population in Queens, NY')
+    lines2 = ax2.plot(rarelig['YEAR'], rarelig['queens_ad_p'], '-o', color='navy', scaley=False, label='Percentage of Catholic Adherents in Queens, NY')
+    lines3 = ax2.plot(rarelig['YEAR'], rarelig['p_queens_aa_ad'], '-o', color='maroon', scaley=False, label = 'Probability of one being both Asian and Catholic in Queens, NY')
+    
+    ax1.legend(loc='upper center', bbox_to_anchor=(0.425, -0.095), frameon=False)
+    ax2.legend(loc='upper center', bbox_to_anchor=(0.6, -0.15), frameon=False)
+    
+    #ax1.legend(loc='upper center', bbox_to_anchor=(0.2, -0.095), frameon=False)
+    #ax2.legend(loc='upper center', bbox_to_anchor=(0.375, -0.15), frameon=False)
+    
+    plt.title('Asian Catholic Population \nin Queens, NY from 2000 to 2010', fontweight='bold', fontsize=17, pad=20)
+    plt.xticks(census['YEAR'])
+    ax1.tick_params(axis='x', length = 0, labelrotation=-45)
+    
+    ax1.set_ylabel('Number of People')
+    ax2.set_ylabel('Percent of Total Population', rotation=270, labelpad=20)
+    
+    fig.set_size_inches(8, 5)
+    plt.show()
+    return fig
 
-p_2000 = ( census['AA_PER'].iloc[0] * rarelig['queens_ad_p'].iloc[0] )
-p_2010 = ( census['AA_PER'].iloc[10] * rarelig['queens_ad_p'].iloc[1] )
-
-rarelig['p_queens_aa_ad'] = [p_2000, p_2010]
-
-fig, ax1 = plt.subplots()
-ax2 = ax1.twinx()  # set up the 2nd axis
-
-ax1.bar(census['YEAR'], census['TOT_AA'], color='teal', alpha=0.5, label='Asian Population in Queens, NY')
-
-ax2.plot(census['YEAR'],census['AA_PER'], '-o', color='gold', scaley=False, label='Percentage of Asian Population in Queens, NY')
-ax2.plot(rarelig['YEAR'], rarelig['queens_ad_p'], '-o', color='navy', scaley=False, label='Percentage of Catholic Adherents in Queens, NY')
-ax2.plot(rarelig['YEAR'], rarelig['p_queens_aa_ad'], '-o', color='maroon', scaley=False, label = 'Probability of one being both Asian and Catholic in Queens, NY')
-plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.075), frameon=False)
-
-plt.title('Asian Catholic Population in Queens, NY from 2000 to 2010', fontweight='bold')
-
-fig.set_size_inches(8, 5)
-plt.show()
+ultimate_graph()
 
