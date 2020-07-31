@@ -2,6 +2,9 @@
 #NAME:  Huong Mai Nguyen
 #DATE:  July 15, 2020
 #TITLE: Visualizing probabilistic uncertainty using matplotlib.
+#       The colors of the bars in the bar chart changes based on the 
+#       probability that a chosen y-value (represented by the red line) falls
+#       within the represented distribution.
 #-------------------------------------------------------------------------------
 
 import pandas as pd
